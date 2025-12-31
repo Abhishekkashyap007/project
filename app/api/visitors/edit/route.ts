@@ -14,6 +14,7 @@ export async function PUT(req: Request) {
       contact_person,
       contact_email,
       purpose,
+      department,
     } = await req.json();
 
     await pool.query(
@@ -27,8 +28,9 @@ export async function PUT(req: Request) {
         contact_no = $6,
         contact_person = $7,
         contact_person_email = $8,
-        purpose = $9
-      WHERE id = $10
+        purpose = $9,
+        department = $10
+      WHERE id = $11
       `,
       [
         name,
@@ -40,6 +42,7 @@ export async function PUT(req: Request) {
         contact_person,
         contact_email,
         purpose,
+        department,
         id,
       ]
     );

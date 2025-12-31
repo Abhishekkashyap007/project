@@ -24,6 +24,7 @@ interface Visitor {
   purpose: string;
   created_at: string;
   out_time: string | null;
+  department: string;
 }
 
 export default function Dashboard() {
@@ -35,6 +36,7 @@ export default function Dashboard() {
   const [personFilter, setPersonFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const formRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(false);
 
   /* ---------- FORM STATE ---------- */
   const [form, setForm] = useState({
@@ -47,7 +49,52 @@ export default function Dashboard() {
     contact_person: "",
     contact_email: "",
     purpose: "",
+    department: "",
+    emp_id: "",
+    emp_name: "",
   });
+
+  /* 📇 FETCH EMPLOYEE DETAILS */
+  const fetchEmployee = async (empId: string) => {
+    if (!empId || empId.length < 3) {
+      setForm((prev) => ({
+        ...prev,
+        emp_name: "",
+        department: "",
+        contact_email: "",
+      }));
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/employee/by-empid", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emp_id: empId }),
+      });
+
+      if (!res.ok) {
+        setForm((prev) => ({
+          ...prev,
+          emp_name: "",
+          department: "",
+          contact_email: "",
+        }));
+        return;
+      }
+
+      const data = await res.json();
+
+      setForm((prev) => ({
+        ...prev,
+        emp_name: data.name,
+        department: data.department,
+        contact_email: data.email,
+      }));
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   /* 🌍 COUNTRY / STATE / CITY DATA */
   const countries = Country.getAllCountries();
@@ -76,7 +123,19 @@ export default function Dashboard() {
   /* ➕ ADD VISITOR */
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (Object.values(form).some((v) => !v.trim())) return;
+
+    if (
+      !form.name ||
+      !form.company ||
+      !form.contact_no ||
+      !form.purpose ||
+      !form.emp_id
+    ) {
+      toast.error("Please fill all required fields ❌");
+      return;
+    }
+
+    setLoading(true);
 
     const countryName =
       countries.find((c) => c.isoCode === form.country)?.name || "";
@@ -84,7 +143,6 @@ export default function Dashboard() {
 
     try {
       if (editId) {
-        // 🔄 EDIT VISITOR
         await fetch("/api/visitors/edit", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -95,34 +153,47 @@ export default function Dashboard() {
             state: stateName,
           }),
         });
+
+        toast.success("Visitor updated successfully ✅");
       } else {
-        // ➕ ADD VISITOR
         await fetch("/api/visitors", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            ...form,
+            name: form.name,
+            company: form.company,
             country: countryName,
             state: stateName,
+            city: form.city,
+            contact_no: form.contact_no,
+            contact_person: form.emp_name,
+            contact_email: form.contact_email,
+            purpose: form.purpose,
+            department: form.department,
           }),
         });
 
-        // 📧 EMAIL SEND TO CONTACT PERSON
-        await emailjs.send(
-          process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
-          process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
-          {
-            to_email: form.contact_email, // 🔥 jis se milna hai uska email
-            name: form.name,
-            company: form.company,
-            contact_no: form.contact_no,
-            purpose: form.purpose,
-          },
-          process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!
-        );
+        toast.success("Visitor added successfully ✅");
+
+        // 📧 EMAIL – BACKGROUND (NO UI BLOCK)
+        emailjs
+          .send(
+            process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
+            process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
+            {
+              to_email: form.contact_email,
+              name: form.name,
+              company: form.company,
+              contact_no: form.contact_no,
+              purpose: form.purpose,
+            },
+            process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!
+          )
+          .catch(() => {
+            toast.warn("Visitor added but email failed ⚠️");
+          });
       }
 
-      // 🔄 RESET FORM
       setForm({
         name: "",
         company: "",
@@ -133,19 +204,18 @@ export default function Dashboard() {
         contact_person: "",
         contact_email: "",
         purpose: "",
+        department: "",
+        emp_id: "",
+        emp_name: "",
       });
 
       setEditId(null);
       loadVisitors();
-
-      toast.success(
-        editId
-          ? "Visitor updated successfully ✅"
-          : "Visitor added & email sent ✅"
-      );
     } catch (err) {
-      console.error("Submit error:", err);
+      console.error(err);
       toast.error("Something went wrong ❌");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -165,6 +235,9 @@ export default function Dashboard() {
         contact_person: found.contact_person,
         contact_email: found.contact_person_email,
         purpose: found.purpose,
+        department: found.department,
+        emp_id: "",
+        emp_name: "",
       });
       setEditId(found.id); // edit mode ON
     }
@@ -212,23 +285,22 @@ export default function Dashboard() {
       {/* HEADER */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 p-4 bg-white shadow-lg rounded-xl gap-4 md:gap-0">
         <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-green-500 to-emerald-600 drop-shadow-lg">
-          Visitor Dashboard
+          VISITOR FORM
         </h1>
-        <div className="text-center">
+        {/* <div className="text-center">
           <p className="text-sm font-semibold">Visitor QR</p>
           <QRCodeCanvas
             value="http://172.16.0.133:3000/login?from=qr"
             size={100}
           />
-        </div>
-
+        </div> */}
         <button
           onClick={() => {
             localStorage.removeItem("isLoggedIn");
             toast.success("Logged out successfully 👋");
             setTimeout(() => {
               router.push("/login");
-            }, 1000);
+            }, 500);
           }}
           className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-red-500 to-pink-500 text-white font-semibold rounded-xl shadow-md hover:scale-105 hover:shadow-lg transition-all duration-300"
         >
@@ -253,8 +325,6 @@ export default function Dashboard() {
         ref={formRef}
         className="bg-gradient-to-r from-white/80 to-gray-100/80 backdrop-blur-md rounded-2xl p-6 mb-6 shadow-lg"
       >
-        <h3 className="text-2xl font-bold mb-6 text-gray-800">Visitor Form</h3>
-
         <form
           onSubmit={handleSubmit}
           className="grid grid-cols-1 md:grid-cols-2 gap-6"
@@ -262,12 +332,25 @@ export default function Dashboard() {
           {/* Visitor Name */}
           <div className="w-full">
             <label className="block text-sm font-semibold mb-2 text-gray-700">
-              Visitor Name
+              VISITOR NAME
             </label>
             <input
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 transition"
+              onChange={(e) => {
+                const value = e.target.value;
+
+                const formatted = value
+                  .split(" ")
+                  .map((word) =>
+                    word.length > 0
+                      ? word.charAt(0).toUpperCase() + word.slice(1)
+                      : ""
+                  )
+                  .join(" ");
+
+                setForm({ ...form, name: formatted });
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400"
               placeholder="Enter visitor name"
             />
           </div>
@@ -275,12 +358,25 @@ export default function Dashboard() {
           {/* Company */}
           <div className="w-full">
             <label className="block text-sm font-semibold mb-2 text-gray-700">
-              Company / Business
+              COMPANY / BUSINESS
             </label>
             <input
               value={form.company}
-              onChange={(e) => setForm({ ...form, company: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 transition"
+              onChange={(e) => {
+                const value = e.target.value;
+
+                const formatted = value
+                  .split(" ")
+                  .map((word) =>
+                    word.length > 0
+                      ? word.charAt(0).toUpperCase() + word.slice(1)
+                      : ""
+                  )
+                  .join(" ");
+
+                setForm({ ...form, company: formatted });
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400"
               placeholder="Company name"
             />
           </div>
@@ -288,7 +384,7 @@ export default function Dashboard() {
           {/* Country */}
           <div className="w-full">
             <label className="block text-sm font-semibold mb-2 text-gray-700">
-              Country
+              COUNTRY
             </label>
             <select
               className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 transition"
@@ -314,7 +410,7 @@ export default function Dashboard() {
           {/* State */}
           <div className="w-full">
             <label className="block text-sm font-semibold mb-2 text-gray-700">
-              State
+              STATE
             </label>
             <select
               className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
@@ -336,7 +432,7 @@ export default function Dashboard() {
           {/* City */}
           <div className="w-full">
             <label className="block text-sm font-semibold mb-2 text-gray-700">
-              City
+              CITY
             </label>
             <select
               className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
@@ -356,63 +452,123 @@ export default function Dashboard() {
           {/* Contact Number */}
           <div className="w-full">
             <label className="block text-sm font-semibold mb-2 text-gray-700">
-              Phone Number
+              VISITOR NUMBER
             </label>
             <input
+              type="text"
               value={form.contact_no}
-              onChange={(e) => setForm({ ...form, contact_no: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 transition"
-              placeholder="e.g. +91 9876543210"
+              onChange={(e) => {
+                const onlyDigits = e.target.value.replace(/\D/g, "");
+                if (onlyDigits.length <= 10) {
+                  setForm({ ...form, contact_no: onlyDigits });
+                }
+              }}
+              maxLength={10}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm"
+              placeholder="Enter the number"
             />
           </div>
 
-          {/* Contact Person */}
+          {/* Employee ID */}
           <div className="w-full">
             <label className="block text-sm font-semibold mb-2 text-gray-700">
-              Contact Person
+              EMPLOYEE ID (Whom to Meet)
             </label>
+
             <input
-              value={form.contact_person}
-              onChange={(e) =>
-                setForm({ ...form, contact_person: e.target.value })
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 transition"
-              placeholder="Contact person name"
+              value={form.emp_id}
+              onChange={(e) => {
+                const empId = e.target.value;
+                setForm({ ...form, emp_id: empId });
+                fetchEmployee(empId);
+              }}
+              placeholder="Enter Employee ID (e.g. EMP001)"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-green-400"
+            />
+          </div>
+
+          {/* Employee Name */}
+          <div className="w-full">
+            <label className="block text-sm font-semibold mb-2 text-gray-700">
+              EMPLOYEE NAME
+            </label>
+
+            <input
+              value={form.emp_name}
+              readOnly
+              className="w-full px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg cursor-not-allowed"
+              placeholder="Auto-filled"
             />
           </div>
 
           {/* Contact Person Email */}
           <div className="w-full">
             <label className="block text-sm font-semibold mb-2 text-gray-700">
-              Contact Person Email
+              EMPLOYEE EMAIL
             </label>
             <input
               type="email"
               value={form.contact_email}
-              onChange={(e) =>
-                setForm({ ...form, contact_email: e.target.value })
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 transition"
-              placeholder="email@example.com"
+              readOnly
+              className="w-full px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg cursor-not-allowed"
+              placeholder="Auto-filled"
+            />
+          </div>
+
+          {/* Department */}
+          <div className="w-full">
+            <label className="block text-sm font-semibold mb-2 text-gray-700">
+              DEPARTMENT
+            </label>
+            <input
+              value={form.department}
+              readOnly
+              className="w-full px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg cursor-not-allowed"
+              placeholder="Auto-filled"
             />
           </div>
 
           {/* Purpose */}
           <div className="w-full">
             <label className="block text-sm font-semibold mb-2 text-gray-700">
-              Purpose of Visit
+              PURPOSE OF VISIT
             </label>
             <input
               value={form.purpose}
-              onChange={(e) => setForm({ ...form, purpose: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 transition"
+              onChange={(e) => {
+                const value = e.target.value;
+
+                const formatted = value
+                  .split(" ")
+                  .map((word) =>
+                    word.length > 0
+                      ? word.charAt(0).toUpperCase() + word.slice(1)
+                      : ""
+                  )
+                  .join(" ");
+
+                setForm({ ...form, purpose: formatted });
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400"
               placeholder="Reason for visit"
             />
           </div>
 
           {/* Submit Button */}
-          <button className="md:col-span-2 py-3 bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold rounded-xl shadow-md hover:scale-105 hover:shadow-lg transition-all duration-300">
-            {editId ? "Update Visitor" : "Add Visitor"}
+          <button
+            disabled={loading}
+            className={`md:col-span-2 py-3 text-white font-semibold rounded-xl shadow-md transition-all duration-300
+    ${
+      loading
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-gradient-to-r from-green-500 to-blue-500 hover:scale-105 hover:shadow-lg"
+    }`}
+          >
+            {loading
+              ? "PROCESSING..."
+              : editId
+              ? "UPDATE VISITOR"
+              : "ADD VISITOR"}
           </button>
         </form>
       </section>
@@ -467,6 +623,7 @@ export default function Dashboard() {
                 "Email",
                 "Person",
                 "Purpose",
+                "Department",
                 "IN-Time",
                 "OUT",
                 "Edit",
@@ -497,6 +654,7 @@ export default function Dashboard() {
                 <td className="px-4 py-2">{v.contact_person_email}</td>
                 <td className="px-4 py-2">{v.contact_person}</td>
                 <td className="px-4 py-2">{v.purpose}</td>
+                <td className="px-4 py-2">{v.department}</td>
                 <td className="px-4 py-2">
                   {new Date(v.created_at).toLocaleString()}
                 </td>
@@ -532,6 +690,9 @@ export default function Dashboard() {
                         contact_person: v.contact_person,
                         contact_email: v.contact_person_email,
                         purpose: v.purpose,
+                        department: v.department,
+                        emp_id: "",
+                        emp_name: "",
                       });
                     }}
                     className="px-3 py-1 bg-blue-500 text-white rounded-md shadow hover:bg-blue-600 hover:scale-105 transition-all duration-200"

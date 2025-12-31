@@ -19,6 +19,20 @@ interface Visitor {
 export default function Home() {
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [visitorSearch, setVisitorSearch] = useState("");
+  const [contactSearch, setContactSearch] = useState("");
+
+  const filteredVisitors = visitors.filter((v) => {
+    const visitorMatch = v.name
+      ?.toLowerCase()
+      .includes(visitorSearch.toLowerCase());
+
+    const contactMatch = v.contact_person
+      ?.toLowerCase()
+      .includes(contactSearch.toLowerCase());
+
+    return visitorMatch && contactMatch;
+  });
 
   /* ================= LOAD TODAY VISITORS ================= */
   const loadVisitors = async () => {
@@ -141,6 +155,35 @@ export default function Home() {
         </h2>
 
         <div className="bg-white shadow-lg border border-teal-100 overflow-hidden">
+          {/* ===== SEARCH BAR INSIDE TABLE ===== */}
+          <div className="flex flex-col md:flex-row justify-between items-center gap-3 px-4 py-3 bg-gradient-to-r from-teal-50 to-white border-b border-teal-200">
+           
+
+            {/* LEFT : Search by Visitor Name */}
+            <input
+              type="text"
+              placeholder="Search by Visitor Name..."
+              value={visitorSearch}
+              onChange={(e) => setVisitorSearch(e.target.value)}
+              className="w-full md:w-1/4 px-3 py-2 text-sm
+                   border border-teal-300 rounded-md
+                   focus:outline-none focus:ring-2 focus:ring-teal-400
+                   shadow-sm transition placeholder-gray-500"
+            />
+
+             {/* RIGHT : Search by Contact Person */}
+            <input
+              type="text"
+              placeholder="Search by Contact Person..."
+              value={contactSearch}
+              onChange={(e) => setContactSearch(e.target.value)}
+              className="w-full md:w-1/4 px-3 py-2 text-sm
+                   border border-teal-300 rounded-md
+                   focus:outline-none focus:ring-2 focus:ring-teal-400
+                   shadow-sm transition placeholder-gray-500"
+            />
+          </div>
+
           <div
             ref={scrollRef}
             className="h-[calc(100vh-260px)] overflow-x-auto"
@@ -165,7 +208,7 @@ export default function Home() {
 
               {/* ===== TABLE BODY ===== */}
               <tbody>
-                {visitors.length === 0 ? (
+                {filteredVisitors.length === 0 ? (
                   <tr>
                     <td
                       colSpan={11}
@@ -175,7 +218,7 @@ export default function Home() {
                     </td>
                   </tr>
                 ) : (
-                  visitors.map((v, i) => {
+                  filteredVisitors.map((v, i) => {
                     const inTime = new Date(v.created_at).toLocaleTimeString(
                       [],
                       {
@@ -232,8 +275,8 @@ export default function Home() {
       {/* ================= FOOTER ================= */}
       <footer className="bg-gradient-to-r from-gray-50 to-gray-100 shadow-inner text-center py-3 text-xs md:text-sm font-medium border-t border-gray-200">
         <span className="text-gray-700">Managed & Maintained by </span>
-        <span className="font-semibold text-emerald-700">Amit Srivastava</span>
-        <span className="text-gray-700"> | Sr. Manager (IT)</span>
+        <span className="font-semibold text-emerald-700">IT Team</span>
+        {/* <span className="text-gray-700"> | Sr. Manager (IT)</span> */}
       </footer>
     </main>
   );

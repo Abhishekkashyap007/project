@@ -25,13 +25,13 @@ export default function LoginClient() {
         localStorage.setItem("openVisitorForm", "true");
       }
 
-      toast.success("Login Successfully ✅", { autoClose: 1500 });
+      toast.success("Login Successfully ✅", { autoClose: 500 });
 
       setTimeout(() => {
         router.push("/dashboard");
-      }, 1500);
+      }, 500);
     } else {
-      toast.error("Invalid Login ID or Password ❌", { autoClose: 1500 });
+      toast.error("Invalid Login ID or Password ❌", { autoClose: 500 });
     }
   };
 
@@ -125,8 +125,7 @@ export default function LoginClient() {
         <footer className="mt-6 text-xs sm:text-sm text-center text-gray-600">
           <div className="w-16 h-[2px] bg-green-500 mx-auto mb-2 rounded-full"></div>
           Managed & Maintained by{" "}
-          <span className="text-green-700 font-semibold">Amit Srivastava</span>{" "}
-          | Sr. Manager (IT)
+          <span className="text-green-700 font-semibold">(IT Team)</span>
         </footer>
       </div>
 

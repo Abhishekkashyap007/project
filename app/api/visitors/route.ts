@@ -24,12 +24,13 @@ export async function POST(req: Request) {
     contact_person,
     contact_email,
     purpose,
+    department,
   } = await req.json();
 
   await pool.query(
     `INSERT INTO visitors
-     (name, company, country, state, city, contact_no, contact_person, contact_person_email, purpose)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+     (name, company, country, state, city, contact_no, contact_person, contact_person_email, purpose, department)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
     [
       name,
       company,
@@ -40,6 +41,7 @@ export async function POST(req: Request) {
       contact_person,
       contact_email,
       purpose,
+      department,
     ]
   );
 
