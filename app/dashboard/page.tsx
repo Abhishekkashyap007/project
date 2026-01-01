@@ -34,7 +34,8 @@ export default function Dashboard() {
   const [nameFilter, setNameFilter] = useState("");
   const [contactFilter, setContactFilter] = useState("");
   const [personFilter, setPersonFilter] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const formRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
 
@@ -52,6 +53,7 @@ export default function Dashboard() {
     department: "",
     emp_id: "",
     emp_name: "",
+    visit_date: "",
   });
 
   /* 📇 FETCH EMPLOYEE DETAILS */
@@ -170,6 +172,8 @@ export default function Dashboard() {
             contact_email: form.contact_email,
             purpose: form.purpose,
             department: form.department,
+            visit_date:
+              form.visit_date || new Date().toISOString().split("T")[0],
           }),
         });
 
@@ -207,6 +211,7 @@ export default function Dashboard() {
         department: "",
         emp_id: "",
         emp_name: "",
+        visit_date: "",
       });
 
       setEditId(null);
@@ -238,6 +243,7 @@ export default function Dashboard() {
         department: found.department,
         emp_id: "",
         emp_name: "",
+        visit_date: "",
       });
       setEditId(found.id); // edit mode ON
     }
@@ -267,8 +273,21 @@ export default function Dashboard() {
     const matchPerson = v.contact_person
       .toLowerCase()
       .includes(personFilter.toLowerCase());
-    const matchDate =
-      dateFilter === "" ? true : v.created_at.startsWith(dateFilter);
+
+    const matchDate = (() => {
+      if (!fromDate && !toDate) return true;
+
+      const visitDate = new Date(v.created_at);
+      const from = fromDate ? new Date(fromDate) : null;
+      const to = toDate ? new Date(toDate + "T23:59:59") : null;
+
+      if (from && to) return visitDate >= from && visitDate <= to;
+      if (from) return visitDate >= from;
+      if (to) return visitDate <= to;
+
+      return true;
+    })();
+
     return matchName && matchContact && matchPerson && matchDate;
   });
 
@@ -554,6 +573,21 @@ export default function Dashboard() {
             />
           </div>
 
+          {/* Visit Date */}
+          <div>
+            <label className="block text-sm font-semibold mb-2">
+              FUTURE VISIT DATE (Optional)
+            </label>
+
+            <input
+              type="date"
+              value={form.visit_date}
+              min={new Date().toISOString().split("T")[0]}
+              onChange={(e) => setForm({ ...form, visit_date: e.target.value })}
+              className="w-full px-4 py-2 border rounded-lg"
+            />
+          </div>
+
           {/* Submit Button */}
           <button
             disabled={loading}
@@ -574,34 +608,45 @@ export default function Dashboard() {
       </section>
 
       {/* FILTER BAR */}
-      <section className="flex flex-col md:flex-row flex-wrap gap-4 mb-6 items-center">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6 items-end">
         <input
-          placeholder="Filter by Name"
+          placeholder="Search by Visitor Name"
           value={nameFilter}
           onChange={(e) => setNameFilter(e.target.value)}
-          className="flex-1 min-w-[150px] px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 transition placeholder-gray-400"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 placeholder-gray-400"
         />
+
         <input
-          placeholder="Filter by Contact No"
+          placeholder="Search by Contact No"
           value={contactFilter}
           onChange={(e) => setContactFilter(e.target.value)}
-          className="flex-1 min-w-[150px] px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 transition placeholder-gray-400"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 placeholder-gray-400"
         />
+
         <input
-          placeholder="Filter by Contact Person"
+          placeholder="Search by Contact Person"
           value={personFilter}
           onChange={(e) => setPersonFilter(e.target.value)}
-          className="flex-1 min-w-[150px] px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 transition placeholder-gray-400"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 placeholder-gray-400"
         />
+
         <input
           type="date"
-          value={dateFilter}
-          onChange={(e) => setDateFilter(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 transition"
+          value={fromDate}
+          onChange={(e) => setFromDate(e.target.value)}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm"
         />
+
+        <input
+          type="date"
+          value={toDate}
+          onChange={(e) => setToDate(e.target.value)}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm"
+        />
+
         <button
           onClick={downloadExcel}
-          className="px-5 py-3 bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold rounded-lg shadow-md hover:scale-105 hover:shadow-lg transition-all duration-300 flex items-center gap-2"
+          className="w-full px-5 py-2.5 bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold rounded-lg shadow-md hover:scale-105 hover:shadow-lg transition-all flex items-center justify-center gap-2"
         >
           ⬇ Excel
         </button>
@@ -693,6 +738,7 @@ export default function Dashboard() {
                         department: v.department,
                         emp_id: "",
                         emp_name: "",
+                        visit_date: "",
                       });
                     }}
                     className="px-3 py-1 bg-blue-500 text-white rounded-md shadow hover:bg-blue-600 hover:scale-105 transition-all duration-200"

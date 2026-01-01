@@ -6,7 +6,11 @@ export async function GET(req: Request) {
   const todayOnly = url.searchParams.get("today") === "true";
 
   let query = "SELECT * FROM visitors";
-  if (todayOnly) query += " WHERE created_at::date = CURRENT_DATE";
+
+  if (todayOnly) {
+    query += " WHERE visit_date = CURRENT_DATE";
+  }
+
   query += " ORDER BY created_at DESC";
 
   const result = await pool.query(query);
@@ -25,12 +29,14 @@ export async function POST(req: Request) {
     contact_email,
     purpose,
     department,
+    visit_date,
   } = await req.json();
 
   await pool.query(
     `INSERT INTO visitors
-     (name, company, country, state, city, contact_no, contact_person, contact_person_email, purpose, department)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+   (name, company, country, state, city, contact_no,
+    contact_person, contact_person_email, purpose, department, visit_date)
+   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
     [
       name,
       company,
@@ -42,6 +48,7 @@ export async function POST(req: Request) {
       contact_email,
       purpose,
       department,
+      visit_date, // 👈 NEW
     ]
   );
 

@@ -13,25 +13,48 @@ export default function LoginClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (username === "Gate2" && password === "gate1234") {
+    if (!username || !password) {
+      toast.error("Enter Employee ID & Password ❌");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          emp_id: username,
+          password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.message || "Login failed ❌", { autoClose: 800 });
+        return;
+      }
+
+      // ✅ LOGIN SUCCESS
       localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("employee", JSON.stringify(data.employee));
 
       const from = searchParams.get("from");
-
       if (from === "qr") {
         localStorage.setItem("openVisitorForm", "true");
       }
 
-      toast.success("Login Successfully ✅", { autoClose: 500 });
+      toast.success("Login Successful ✅", { autoClose: 500 });
 
       setTimeout(() => {
         router.push("/dashboard");
       }, 500);
-    } else {
-      toast.error("Invalid Login ID or Password ❌", { autoClose: 500 });
+    } catch (error) {
+      console.error(error);
+      toast.error("Server error ❌");
     }
   };
 
@@ -78,7 +101,7 @@ export default function LoginClient() {
         >
           <input
             type="text"
-            placeholder="Login ID"
+            placeholder="Employee ID"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             className="w-full p-3 sm:p-4 mb-4 rounded-lg border border-green-200
